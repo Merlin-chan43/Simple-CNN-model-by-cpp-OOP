@@ -7,11 +7,11 @@ The core components and their functionalities are outlined as follows:
 
 ### 1.1 Data Representation: `Tensor`
 
-The fundamental data structure used throughout the network is the `Tensor`. Represented by `Tensor.h` and `Tensor.cpp`, this custom class is designed to efficiently handle multi-dimensional numerical data. Internally, it stores all elements in a contiguous `std::vector<float>`, optimizing memory access. Its primary features include:
+  The fundamental data structure used throughout the network is the `Tensor`. Represented solely by `Tensor.h`, this custom class is designed to efficiently handle multi-dimensional numerical data. Its implementation, including all method definitions, is entirely contained within `Tensor.h`, providing a self-contained data handling unit. Internally, it stores all elements in a contiguous `std::vector<float>`, optimizing memory access. Its primary features include:
 
-- **Multi-dimensional Storage:** Capable of representing scalars (0D), vectors (1D), matrices (2D), and higher-dimensional data (e.g., 3D for image feature maps [channels, height, width]).
-- **Shape Management:** A `std::vector<int>` stores the dimensions of the tensor, allowing flexible shape manipulation.
-- **Linear Indexing:** Provides methods to convert multi-dimensional coordinates (e.g., `{c, h, w}`) into a single linear index for efficient access to the underlying `std::vector<float>` data. This is crucial for correctly mapping conceptual multi-dimensional operations to linear memory.
+  - **Multi-dimensional Storage:** Capable of representing scalars (0D), vectors (1D), matrices (2D), and higher-dimensional data (e.g., 3D for image feature maps [channels, height, width]).
+  - **Shape Management:** A `std::vector<int>` stores the dimensions of the tensor, allowing flexible shape manipulation.
+  - **Linear Indexing:** Provides methods to convert multi-dimensional coordinates (e.g., `{c, h, w}`) into a single linear index for efficient access to the underlying `std::vector<float>` data. This is crucial for correctly mapping conceptual multi-dimensional operations to linear memory.
 
 ### 1.2 Abstract Base Layer: `Layer`
 
@@ -46,7 +46,7 @@ The `CNN` class (CNN.h, CNN.cpp) acts as the central orchestrator of the entire 
 
 The `main.cpp` file serves as the application's entry point, handling the overall program flow. It orchestrates the initialization of the CNN model, the loading of pre-trained parameters, and the execution of the prediction process.
 
-- **Parameter Loading:** Accesses the pre-trained model weights and biases, which are defined as global arrays in `face_binary_cls.cpp` and declared via `model_weights.h`.
+- **Parameter Definition and Loading:** The pre-trained model weights and biases are directly defined as global arrays within `main.cpp`. This consolidates the model's numerical parameters alongside the main application logic, making them immediately accessible for network assembly.
 - **Network Assembly:** Instantiates the `CNN` class and dynamically creates instances of each concrete layer (`Conv`, `Relu`, `MaxPooling`, `Flatten`, `fc_layer`, `SoftMax`), passing the loaded weights and biases to their respective constructors where applicable. These layers are then added to the `CNN` object in the correct architectural sequence.
 - **Image Processing and Prediction:** Utilizes the `CNN::load_image_as_tensor` method to load and prepare input images (`man.jpg`, `plane.jpg`). It then invokes the `CNN::predict` method to perform the forward pass, obtaining the classification probabilities.
 - **Result Interpretation:** Interprets the final output `Tensor` (the Softmax probabilities) to determine and display the prediction (face or background).
