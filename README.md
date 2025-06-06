@@ -51,3 +51,67 @@ The `main.cpp` file serves as the application's entry point, handling the overal
 - **Image Processing and Prediction:** Utilizes the `CNN::load_image_as_tensor` method to load and prepare input images (`man.jpg`, `plane.jpg`). It then invokes the `CNN::predict` method to perform the forward pass, obtaining the classification probabilities.
 - **Result Interpretation:** Interprets the final output `Tensor` (the Softmax probabilities) to determine and display the prediction (face or background).
 - **Resource Management:** Ensures proper cleanup and deallocation of all dynamically created resources before program termination.
+## 2. Development Challenges and Solutions
+
+During the development of this CNN project, our team encountered several significant challenges, primarily related to data handling and inter-module communication. Addressing these issues was crucial for achieving a correctly functioning model.
+
+### 2.1 Parameter Mismatch in Layer Initialization
+
+**Challenge:** One developer implemented the `fc_layer` class, designed to receive pre-trained weights and biases through its constructor. Concurrently, another developer was responsible for the `main.cpp` file, which orchestrates the network assembly and passes these parameters to the layer constructors. A critical mismatch occurred in the interpretation and passing of parameter dimensions. The `fc_layer` was designed to expect a specific `[out_features, in_features]` shape for its weight matrix, but the `main.cpp` was incorrectly providing or interpreting the dimensions, leading to runtime errors during the layer's initialization or during the forward pass due to incorrect tensor shapes and memory access. This was often manifested as `std::invalid_argument` exceptions related to tensor size or shape mismatches.
+
+**Solution:** The resolution involved a detailed collaborative debugging session to meticulously cross-reference the `fc_layer`'s constructor signature and its internal `Tensor` shape expectations with how the parameters were being retrieved and passed from `main.cpp`. This included:
+
+- **Verifying `fc_layer.h` and `fc_layer.cpp`:** Ensuring the `fc_layer` constructor correctly initialized `weights_` and `biases_` with their intended `[out_features, in_features]` and `[out_features]` shapes, respectively, by properly setting the `Tensor::shape` member and resizing `Tensor::data`.
+- **Tracing `main.cpp`'s Parameter Retrieval:** Confirming that the `in_features` and `out_features` values extracted from `conv_params` and `fc_params` (defined in `main.cpp`) precisely matched the dimensions required by the `fc_layer` constructor.
+- **Ensuring Correct Indexing:** Double-checking that when passing the `fc0_weight` and `fc0_bias` raw arrays, the `out_features` and `in_features` values were correctly derived and supplied in the constructor's argument list, aligning with the `fc_layer`'s internal `weights_.shape[0]` and `weights_.shape[1]` logic. This direct comparison and correction of parameter values and their interpretation across both modules resolved the initialization failures.
+
+### 2.2 Incorrect Data Ordering in OpenCV to Tensor Conversion
+
+**Challenge:** A significant problem arose during the initial data preparation phase, specifically when converting image data loaded via OpenCV into the custom `Tensor` format. The intended order for the `Tensor` was `[Channel, Height, Width]` (CHW), where all pixels of the first channel are stored contiguously, followed by all pixels of the second channel, and so on. However, the implemented conversion code mistakenly adopted a different internal iteration order, effectively converting the data into a `[Height, Width, Channel]` (HWC) or `[Height, Channel, Width]` (HCW) like representation but flattened into a CHW structure. This meant that after processing the first pixel of the first channel, the code immediately processed the first pixel of the second channel (at the same spatial `(h, w)` location), rather than moving to the next `(h, w)` location within the *same* channel. This subtle ordering error propagated incorrect data through the network, leading to nonsensical prediction results.
+
+**Solution:** The issue was identified through careful debugging of the `CNN::load_image_as_tensor` method and visual inspection of intermediate `Tensor` data. The fix involved adjusting the nested loops responsible for copying pixel data from the OpenCV `cv::Mat` into the `Tensor`'s `data` vector.
+
+- **Understanding OpenCV's Layout:** Acknowledging that `cv::Mat` typically stores pixel data in a `[Height, Width, Channel]` (HWC) layout.
+
+- Correcting Loop Order and Linear Index Calculation:
+
+   The nested loops were re-ordered to explicitly iterate through 
+
+  `Channel`, then`Height`, then`Width`, and the linear index calculation within`Tensor::data`was adjusted to match this CHW target order:
+
+  C++
+
+  ```
+  // Corrected logic within CNN::load_image_as_tensor
+  const int totalElements = floatImage.rows * floatImage.cols * floatImage.channels();
+      std::vector<float> floatArray(
+          reinterpret_cast<float*>(floatImage.data),
+          reinterpret_cast<float*>(floatImage.data) + totalElements
+      );
+      int m_size = floatArray.size();
+      vector <float> floatFinal;
+      for (int i = 0; i <= 2; i++)
+      {
+          for (int j = i;j <= m_size - 1;j += 3)
+          {
+              floatFinal.push_back(floatArray[j]);
+          }
+      }
+      Tensor temp;
+      temp.shape = { floatImage.channels(), floatImage.rows, floatImage.cols };
+      temp.data = std::move(floatFinal);
+  ```
+
+This corrected indexing ensured that the image data was correctly arranged in the CHW format within the `Tensor`'s linear `data` array, allowing subsequent convolutional layers to interpret and process the features accurately.
+
+## 3. Project Summary and Reflections
+
+This project has been a deeply insightful journey into the practical implementation of Convolutional Neural Networks (CNNs) from fundamental principles. By building a forward propagation pipeline in C++, we gained a comprehensive understanding of the intricate mechanisms that power modern deep learning models.
+
+One of the most significant takeaways has been the profound importance of **data representation and consistency**. The `Tensor` class, serving as the universal data carrier, underscored how crucial a well-designed data structure is for efficient computation and seamless data flow between diverse layers. The challenges encountered during OpenCV image conversion vividly highlighted that the *order* in which multi-dimensional data is flattened into a one-dimensional array is not merely an implementation detail but fundamentally affects the network's ability to interpret features correctly. Misalignments, such as the `[Height, Width, Channel]` (HWC) versus `[Channel, Height, Width]` (CHW) order, led to immediate and significant prediction inaccuracies, emphasizing the need for meticulous attention to data layout from the input pipeline onward.
+
+Furthermore, the experience elucidated the power and necessity of **Object-Oriented Programming (OOP) in complex system design**. The `Layer` abstract base class provided a robust blueprint, enforcing a common interface (`forward` and `get_output_shape`) that enabled polymorphic behavior. This design pattern allowed the `CNN` class to orchestrate the entire network's forward pass by simply iterating through a collection of `Layer*` pointers, calling the generic `forward` method, without needing to know the specific type of each concrete layer. This modularity not only made the `CNN` class cleaner and easier to manage but also significantly improved the extensibility of the network, allowing for easy addition or modification of layer types without altering the core network execution logic.
+
+The collaborative aspect of the project, though presenting initial hurdles like parameter mismatches between `fc_layer` and `main.cpp`, proved invaluable. These challenges underscored the critical importance of **clear communication and strict adherence to defined interfaces** within a team. Differences in interpretation of parameter meanings (e.g., `in_features` vs. `out_features` or specific array indexing conventions) can halt progress until meticulously resolved through joint debugging and verification of design choices. This collaborative debugging process also reinforced the importance of unit testing individual layer implementations to isolate and identify errors more quickly.
+
+In conclusion, this project served as an excellent practical exercise, solidifying theoretical knowledge of CNNs with hands-on C++ implementation. It not only deepened our understanding of core deep learning concepts like convolution, pooling, and activation functions but also provided invaluable lessons in robust software engineering principles, data integrity, and effective team collaboration. The successful implementation of this forward propagation pipeline lays a strong foundation for future exploration into more complex CNN architectures, backpropagation, and model training.
