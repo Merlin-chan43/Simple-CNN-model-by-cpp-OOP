@@ -122,3 +122,26 @@ This project was a collaborative effort, with each team member contributing sign
 - **Xiaofan Chen:** Primarily responsible for the completion of this project report, detailing the architectural overview, implementation specifics, and encountered challenges. In terms of code development, Xiaofan Chen implemented the `Tensor` class, the `Layer` abstract base class, and the concrete layer implementations for `relu`, `flatten`, `softMax`, `maxPooling`, and `fc_layer`.
 - **Yeming Dai:** Focused on the core computational and structural components of the CNN. Yeming Dai was responsible for implementing the `Conv` (Convolutional Layer) class, the overarching `CNN` class that orchestrates the network, and the `main.cpp` file which serves as the program's entry point and handles model assembly and execution.
 - **Zhenyang Peng:** Undertook the completion of a procedural-style project implementation. This separate, but related, endeavor provides an alternative approach to building the CNN, demonstrating a different programming paradigm. His work is available in a distinct repository.
+
+## 5. Distinction Between OOP and Procedural Approaches in This Project
+
+This project provides a unique opportunity to contrast Object-Oriented Programming (OOP) and procedural programming paradigms in the context of building a Convolutional Neural Network.
+
+### 5.1 Object-Oriented Programming (OOP) Approach
+
+Our primary implementation utilizes an OOP approach, centralizing the concept of "objects" that encapsulate both data and the methods (functions) that operate on that data.
+
+- **Encapsulation and Modularity:** Each component of the CNN (e.g., `Tensor`, `Layer` and its concrete derivations like `Conv`, `Relu`, `fc_layer`, and the `CNN` orchestrator) is represented as a distinct class. These classes encapsulate their internal data (e.g., `Tensor`'s `data` and `shape`, a layer's `weights_` and `biases_`) and behavior (e.g., `forward`, `get_output_shape`). This makes each part self-contained and easier to understand, develop, and debug independently.
+- **Abstraction and Polymorphism:** The `Layer` abstract base class defines a common interface (`forward`, `get_output_shape`) that all specific layers adhere to. This abstraction allows the `CNN` class to manage and execute all layers uniformly through `Layer*` pointers, without needing to know their specific types. This polymorphic behavior significantly enhances the flexibility and extensibility of the network, as new layer types can be easily added without modifying the core `CNN` execution logic.
+- **Code Reusability and Maintainability:** The class-based structure promotes code reusability (e.g., a `Relu` layer can be instantiated multiple times) and simplifies maintenance. Changes or bug fixes within a specific layer class are localized and less likely to impact other parts of the system.
+
+### 5.2 Procedural Programming Approach
+
+In contrast, the parallel procedural-style implementation (developed by Peng Zhenyang) approaches the CNN construction as a sequence of steps or functions, rather than a collection of interacting objects.
+
+- **Sequential Execution and Global Data:** The procedural approach would likely involve a series of functions (`convolve_image`, `apply_relu`, `max_pool_data`, `flatten_features`, `fully_connect_data`, `apply_softmax`) that are called in a strict sequence. Data (e.g., image data, feature maps, weights) might be passed explicitly between these functions or stored as global variables accessible to multiple functions.
+- **Less Encapsulation:** Data and the functions that operate on them are less tightly coupled. The internal structure of a "layer" (like its weights) might be managed separately from the functions that use them.
+- **Direct Control Flow:** The flow of execution is typically explicit and sequential, driven by direct function calls in `main` or other top-level functions.
+- **Potential Challenges:** While simpler for very small, linear tasks, complex systems like CNNs can become harder to manage procedurally. Debugging can be more challenging as data state is less localized, and modifications to one part of the pipeline might require changes in many other places due to data being manipulated globally or passed explicitly through long function chains. Adding new layer types would likely involve modifying the main execution sequence directly, rather than simply adding a new class to a collection.
+
+In summary, while both paradigms can achieve the goal of implementing a CNN's forward pass, the OOP approach offers superior advantages in terms of modularity, scalability, maintainability, and code reusability for a system as complex as a deep neural network.
